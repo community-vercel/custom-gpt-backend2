@@ -1,37 +1,56 @@
+// models/Flow.js
 const mongoose = require('mongoose');
 
-// models/Flow.js
 const flowSchema = new mongoose.Schema({
-    userId: {
-        type: String, // use String instead of ObjectId
-        required: true,
-        ref: 'User'
+  userId: {
+    type: String,
+    required: true,
+    ref: 'User'
+  },
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  websiteDomain: {
+    type: String,
+    required: true,
+    trim: true,
+    validate: {
+      validator: function (v) {
+        // Basic URL validation
+        return /^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/.test(v);
       },
-    name: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    nodes: {
-      type: Array,
-      required: true
-    },
-    edges: {
-      type: Array,
-      required: true
+      message: props => `${props.value} is not a valid domain!`
     }
-  }, { 
-    timestamps: true,
-    // Add this to prevent the duplicate key error
-    autoIndex: false // We'll create the index manually after checking
-  });
-  
-  // Create index manually only if it doesn't exist
-  flowSchema.index({ userId: 1, name: 1 }, { 
-    unique: true,
-    partialFilterExpression: { 
-      name: { $exists: true, $gt: '' } 
-    }
-  });
-  
-  module.exports = mongoose.model('Flow', flowSchema);
+  },
+  nodes: {
+    type: Array,
+    required: true
+  },
+  edges: {
+    type: Array,
+    required: true
+  }
+}, { 
+  timestamps: true,
+  autoIndex: false
+});
+
+// Ensure one flow per website domain per user
+flowSchema.index({ userId: 1, websiteDomain: 1 }, { 
+  unique: true,
+  partialFilterExpression: { 
+    websiteDomain: { $exists: true, $gt: '' } 
+  }
+});
+
+// Index for userId and name uniqueness
+flowSchema.index({ userId: 1, name: 1 }, { 
+  unique: true,
+  partialFilterExpression: { 
+    name: { $exists: true, $gt: '' } 
+  }
+});
+
+module.exports = mongoose.model('Flow', flowSchema)

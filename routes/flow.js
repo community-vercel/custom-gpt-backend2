@@ -9,11 +9,10 @@ const Flow = require('../models/Flow');
 
 
 router.post('/:userId', async (req, res) => {
-    try {
-      const { nodes, edges, flowName } = req.body;
-      
-      // Generate a unique name if not provided
-      let name = flowName || `Flow ${new Date().toLocaleString()}`;
+  try {
+    const { userId } = req.params;
+    const { nodes, edges, flowName, websiteDomain } = req.body;
+ let name = flowName || `Flow ${new Date().toLocaleString()}`;
       
       // Check if name exists for this user
       const existingFlow = await Flow.findOne({ userId: req.params.userId, name });
@@ -21,23 +20,23 @@ router.post('/:userId', async (req, res) => {
         // Append timestamp to make it unique
         name = `${name} (${Date.now()})`;
       }
-  
-      const newFlow = new Flow({
-        userId: req.params.userId,
-        name,
-        nodes,
-        edges
-      });
-      
-      await newFlow.save();
-      res.status(201).json(newFlow);
-    } catch (error) {
-      res.status(500).json({ 
-        message: 'Failed to create flow',
-        error: error.message 
-      });
+    const flow = new Flow({
+      userId,
+      name,
+      websiteDomain,
+      nodes,
+      edges
+    });
+
+    const savedFlow = await flow.save();
+    res.status(201).json(savedFlow);
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'A flow already exists for this website domain or flow name.' });
     }
-  });
+    res.status(500).json({ message: error.message });
+  }
+});
   
   // Update Flow
   router.put('/:userId/:flowId', async (req, res) => {
@@ -84,8 +83,30 @@ router.post('/:userId', async (req, res) => {
     }
   });
   
-  // Get All Flows for User
-  router.get('/:userId', async (req, res) => {
+router.put('/:userId/:flowId', async (req, res) => {
+  try {
+    const { userId, flowId } = req.params;
+    const { nodes, edges, websiteDomain } = req.body;
+
+    const flow = await Flow.findOneAndUpdate(
+      { _id: flowId, userId },
+      { nodes, edges, websiteDomain },
+      { new: true }
+    );
+
+    if (!flow) {
+      return res.status(404).json({ message: 'Flow not found' });
+    }
+
+    res.json(flow);
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'A flow already exists for this website domain.' });
+    }
+    res.status(500).json({ message: error.message });
+  }
+});
+ router.get('/user/:userId', async (req, res) => {
     try {
         const flows = await Flow.find({ userId: req.params.userId })
         .sort({ updatedAt: -1 })
@@ -94,6 +115,7 @@ router.post('/:userId', async (req, res) => {
       const formattedFlows = flows.map(flow => ({
         _id: flow._id,
         name: flow.name,
+        websiteDomain:flow.websiteDomain,
         updatedAt: flow.updatedAt,
         nodesCount: flow.nodes?.length || 0,
         edgesCount: flow.edges?.length || 0
@@ -107,26 +129,47 @@ router.post('/:userId', async (req, res) => {
       });
     }
   });
+
+// Get all flows for a user
+router.get('/:userId', async (req, res) => {
+  try {
+    const flows = await Flow.find({ userId: req.params.userId });
+    res.json(flows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get a specific flow
+
+  
+  // Get All Flows for User
+ 
   
   // Get Single Flow
 // routes/flow.js
 router.get('/:userId/:flowId', async (req, res) => {
     try {
+      console.log(`Fetching flow for userId: ${req.params.userId}, flowId: ${req.params.flowId}`); // Debug log
       const flow = await Flow.findOne({
         userId: req.params.userId,
         _id: req.params.flowId,
       });
-  
+
       if (!flow) {
+        console.error('Flow not found');
         return res.status(404).json({ message: 'Flow not found' });
       }
   
-      res.json(flow);
-    } catch (error) {
-      res.status(500).json({
-        message: 'Failed to get flow',
-        error: error.message,
+      res.json({
+        nodes: flow.nodes,
+        edges: flow.edges,
+        flowName:flow.name,
+        websiteDomain:flow.websiteDomain,
       });
+    } catch (error) {
+      console.error('Error fetching flow:', error);
+      res.status(500).json({ message: 'Failed to fetch flow', error: error.message });
     }
   });
 //   router.get('/:userId/:flowId', async (req, res) => {

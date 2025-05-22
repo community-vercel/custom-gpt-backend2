@@ -31,48 +31,54 @@ const app = express();
 
 // Security middleware
 // Security middleware
+// index.js (partial update)
+// index.js (partial update)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// CSP configuration
 app.use(helmet({
-  frameguard: false, // Disable X-Frame-Options (redundant with CSP frame-ancestors)
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      frameAncestors: ["'self'", "http://localhost:3000", "http://localhost:8000"], // Allow framing from these origins
-      scriptSrc: ["'self'", "http://localhost:5000"], // Allow scripts from these sources
-      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles (used in widget)
+      frameAncestors: ["*"], // Allow all network schemes
+      scriptSrc: ["'self'", "http://localhost:5000"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      connectSrc: ["'self'", "http://localhost:5000"],
     },
   },
 }));
 
 // Enable CORS with logging
-// app.use(cors({
-//   origin: (origin, callback) => {
-//     const allowedOrigins = [
-//       process.env.FRONTEND_URL,
-//       "http://localhost:3000",
-//       "http://localhost:3001",
-//       "http://localhost:5000",
-//       "http://localhost",
-//       "http://localhost:8000",
-//     ];
-//     console.log(`CORS Origin: ${origin}`);
-//     if (!origin || allowedOrigins.includes(origin)) {
-//       callback(null, true);
-//     } else {
-//       console.error(`CORS blocked: ${origin} not allowed`);
-//       callback(new Error('Not allowed by CORS'));
-//     }
-//   },
-//   credentials: true,
-//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-//   allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
-// }));
-app.use(
-  cors({
-    origin: '*', // Or specify allowed origins, e.g., ['https://example.com']
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'x-api-key'],
-  })
-);
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:5000",
+      "http://localhost",
+      "http://localhost:8000",
+      "*",
+    ];
+    console.log(`CORS Origin: ${origin}`);
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.error(`CORS blocked: ${origin} not allowed`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
+}));
+// app.use(
+//   cors({
+//     origin: '*', // Or specify allowed origins, e.g., ['https://example.com']
+//     methods: ['GET', 'POST', 'PUT', 'DELETE'],
+//     allowedHeaders: ['Content-Type', 'x-api-key'],
+//   })
+// );
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -104,7 +110,7 @@ app.use("/api/flow", flowRouter);
 app.use("/api/protected", protectedRoutes);
 app.use("/api/package", package);
 app.use("/api/widget", widgetRoutes);
-app.use('/embed', embedRouter);
+app.use('/api/embed', embedRouter);
 app.use('/api/chatbot', chatbotRoutes);
 
 app.use(express.json({ verify: (req, res, buf) => {

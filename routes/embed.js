@@ -4,6 +4,37 @@ const router = express.Router();
 const Flow = require('../models/Flow');
 
 // Serve the chatbot flow for embedding
+router.get('/embed/:userId/:flowId', async (req, res) => {
+    try {
+      const flow = await Flow.findOne({
+        userId: req.params.userId,
+        _id: req.params.flowId,
+      });
+      if (!flow) {
+        return res.status(404).send('Flow not found');
+      }
+      // Render HTML with chatbot UI
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body { margin: 0; font-family: ${themeConfig.fontFamily || 'Inter, sans-serif'}; }
+              #chatbot { background: ${themeConfig.backgroundColor || '#ffffff'}; color: ${themeConfig.textColor || '#111827'}; }
+            </style>
+          </head>
+          <body>
+            <div id="chatbot">
+              <!-- Render chatbot UI here using flow.nodes and flow.edges -->
+            </div>
+            <script src="/path-to-your-chatbot-script.js"></script>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      res.status(500).send('Error loading chatbot');
+    }
+  });
 router.get('/:userId/:flowId', async (req, res) => {
   try {
     const flow = await Flow.findOne({
