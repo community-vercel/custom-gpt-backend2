@@ -4,7 +4,7 @@ const router = express.Router();
 const Flow = require('../models/Flow');
 
 router.use(cors({
-  origin: ['http://localhost:3000', 'https://custom-gpt-builder-frontends-lvhs.vercel.app'], // Replace with your frontend's origin
+  origin: ['http://localhost:3000', 'https://custom-gpt-builder-frontends-lvhs.vercel.app'],
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Accept']
 }));
@@ -47,16 +47,17 @@ router.get('/:flowId/:userId', async (req, res) => {
       }
     }
 
-    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' http://localhost:5000 https://custom-gpt-backend-six.vercel.app https://custom-gpt-backend2.vercel.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*; frame-ancestors *; connect-src 'self' http://localhost:5000 https://custom-gpt-backend-six.vercel.app https://custom-gpt-backend2.vercel.app");
+    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' http://localhost:5000 https://custom-gpt-backend-six.vercel.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*; frame-ancestors *; connect-src 'self' http://localhost:5000 https://custom-gpt-backend-six.vercel.app");
 
+    
     res.send(`
       <!DOCTYPE html>
       <html>
       <head>
         <title>Chatbot</title>
         <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <script src="https://custom-gpt-backend2.vercel.app/api/chatbot/script.js"></script>
-        <script src="https://custom-gpt-backend2.vercel.app/api/chatbot/config.js?flowId=${req.params.flowId}&userId=${req.params.userId}&primary=${encodeURIComponent(req.query.primary || '#6366f1')}&secondary=${encodeURIComponent(req.query.secondary || '#f59e0b')}&background=${encodeURIComponent(req.query.background || '#f8fafc')}&text=${encodeURIComponent(req.query.text || '#1f2937')}&name=${encodeURIComponent(req.query.name || 'Assistant')}&avatar=${encodeURIComponent(req.query.avatar || 'https://img.freepik.com/free-vector/chatbot-chat-message-vectorart_78370-4104.jpg?semt=ais_hybrid&w=200')}"></script>
+        <script src="https://custom-gpt-backend-six.vercel.app/api/chatbot/script.js"></script>
+        <script src="https://custom-gpt-backend-six.vercel.app/api/chatbot/config.js?flowId=${req.params.flowId}&userId=${req.params.userId}&primary=${encodeURIComponent(req.query.primary || '#6366f1')}&secondary=${encodeURIComponent(req.query.secondary || '#f59e0b')}&background=${encodeURIComponent(req.query.background || '#f8fafc')}&text=${encodeURIComponent(req.query.text || '#1f2937')}&name=${encodeURIComponent(req.query.name || 'Assistant')}&avatar=${encodeURIComponent(req.query.avatar || 'https://img.freepik.com/free-vector/chatbot-chat-message-vectorart_78370-4104.jpg?semt=ais_hybrid&w=200')}"></script>
         <script>
           document.addEventListener('DOMContentLoaded', () => {
             if (window.initChatbot) {
@@ -80,7 +81,7 @@ router.get('/:flowId/:userId', async (req, res) => {
 
 router.get('/config.js', (req, res) => {
   console.log('[Chatbot] Serving config script');
-  res.set('Access-Control-Allow-Origin', req.get('Origin') || 'http://localhost:3000');
+  res.set('Access-Control-Allow-Origin', req.get('Origin') || 'https://custom-gpt-builder-frontends-lvhs.vercel.app');
   res.set('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type,Accept');
   const { flowId, userId, primary, secondary, background, text, name, avatar } = req.query;
@@ -107,7 +108,7 @@ router.get('/config.js', (req, res) => {
 router.get('/script.js', async (req, res) => {
   try {
     console.log('[Chatbot] Serving chatbot script');
-    res.set('Access-Control-Allow-Origin', req.get('Origin') || 'http://localhost:3000');
+    res.set('Access-Control-Allow-Origin', req.get('Origin') || 'https://custom-gpt-builder-frontends-lvhs.vercel.app');
     res.set('Access-Control-Allow-Methods', 'GET,OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type,Accept');
     const script = `
@@ -305,7 +306,7 @@ router.get('/script.js', async (req, res) => {
                       align-items: center;
                       justify-content: center;
                       transition: background 0.2s, transform 0.2s;
-                      z-index: 1001; /* Ensure send button is above other elements */
+                      z-index: 1001;
                     "
                     onmouseover="this.style.background='\${config.theme?.secondary || '#4f46e5'}'"
                     onmouseout="this.style.background='\${config.theme?.primary || '#6366f1'}'"
@@ -319,7 +320,6 @@ router.get('/script.js', async (req, res) => {
             </div>
           \`;
 
-          // Add floating toggle button
           const toggleIcon = document.createElement('button');
           toggleIcon.innerHTML = \`
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
@@ -448,7 +448,7 @@ router.get('/script.js', async (req, res) => {
           let chatHistory = [];
           let isTyping = false;
 
-          const fetchUrl = \`https://custom-gpt-backend2.vercel.app/api/flow/\${config.userId}/\${config.flowId}\`;
+          const fetchUrl = \`https://custom-gpt-backend-six.vercel.app/api/flow/\${config.userId}/\${config.flowId}\`;
           console.log('[Chatbot] Fetching flow from:', fetchUrl);
           fetch(fetchUrl, { method: 'GET', headers: { 'Accept': 'application/json' } })
             .then((response) => {
