@@ -47,7 +47,7 @@ router.get('/:flowId/:userId', async (req, res) => {
       }
     }
 
-    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' http://localhost:5000 https://custom-gpt-backend-six.vercel.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*; frame-ancestors *; connect-src 'self' http://localhost:5000 https://custom-gpt-backend-six.vercel.app");
+    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' http://localhost:5000 https://custom-gpt-backend-six.vercel.app https://custom-gpt-backend2.vercel.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*; frame-ancestors *; connect-src 'self' http://localhost:5000 https://custom-gpt-backend-six.vercel.app https://custom-gpt-backend2.vercel.app");
 
     res.send(`
       <!DOCTYPE html>
@@ -55,8 +55,8 @@ router.get('/:flowId/:userId', async (req, res) => {
       <head>
         <title>Chatbot</title>
         <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <script src="https://custom-gpt-backend-six.vercel.app/api/chatbot/script.js"></script>
-        <script src="https://custom-gpt-backend-six.vercel.app/api/chatbot/config.js?flowId=${req.params.flowId}&userId=${req.params.userId}&primary=${encodeURIComponent(req.query.primary || '#6366f1')}&secondary=${encodeURIComponent(req.query.secondary || '#f59e0b')}&background=${encodeURIComponent(req.query.background || '#f8fafc')}&text=${encodeURIComponent(req.query.text || '#1f2937')}&name=${encodeURIComponent(req.query.name || 'Assistant')}&avatar=${encodeURIComponent(req.query.avatar || 'https://img.freepik.com/free-vector/chatbot-chat-message-vectorart_78370-4104.jpg?semt=ais_hybrid&w=200')}"></script>
+        <script src="https://custom-gpt-backend2.vercel.app/api/chatbot/script.js"></script>
+        <script src="https://custom-gpt-backend2.vercel.app/api/chatbot/config.js?flowId=${req.params.flowId}&userId=${req.params.userId}&primary=${encodeURIComponent(req.query.primary || '#6366f1')}&secondary=${encodeURIComponent(req.query.secondary || '#f59e0b')}&background=${encodeURIComponent(req.query.background || '#f8fafc')}&text=${encodeURIComponent(req.query.text || '#1f2937')}&name=${encodeURIComponent(req.query.name || 'Assistant')}&avatar=${encodeURIComponent(req.query.avatar || 'https://img.freepik.com/free-vector/chatbot-chat-message-vectorart_78370-4104.jpg?semt=ais_hybrid&w=200')}"></script>
         <script>
           document.addEventListener('DOMContentLoaded', () => {
             if (window.initChatbot) {
@@ -448,7 +448,7 @@ router.get('/script.js', async (req, res) => {
           let chatHistory = [];
           let isTyping = false;
 
-          const fetchUrl = \`https://custom-gpt-backend-six.vercel.app/api/flow/\${config.userId}/\${config.flowId}\`;
+          const fetchUrl = \`https://custom-gpt-backend2.vercel.app/api/flow/\${config.userId}/\${config.flowId}\`;
           console.log('[Chatbot] Fetching flow from:', fetchUrl);
           fetch(fetchUrl, { method: 'GET', headers: { 'Accept': 'application/json' } })
             .then((response) => {
