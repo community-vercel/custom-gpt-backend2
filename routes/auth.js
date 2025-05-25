@@ -1,155 +1,211 @@
-const express = require("express");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+// routes/auth.js
+const express = require('express');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const {
+  authMiddleware,
+  adminMiddleware,
+  validateSignup,
+  validateLogin,
+  validateUserId,
+  validateUpdateUser,
+} = require('../middleware/auth');
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET;
+// Signup (consolidated /register, /adduser, /signup)
+router.post('/register', validateSignup, async (req, res) => {
+  try {
+    const { email, password, name, role, googleId, image, provider, active } = req.body;
 
-router.post("/register", async (req, res) => {
-    const { email, password, name, googleId, image, provider } = req.body;
-  
-    try {
-      let user = await User.findOne({ email });
-  
-      if (user) {
-        return res.status(400).json({ message: "User already exists." });
-      }
-  
-      user = new User({
-        email,
-        password,
-      
-        role,
-        name,
-        googleId,
-        image,
-        provider,
-      });
-  
-      await user.save();
-  
-      res.status(201).json({ message: "User created successfully.", user });
-  
-    } catch (error) {
-      console.error("Error saving user:", error);
-      res.status(500).json({ message: "Server error.", error });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email already exists' });
     }
-  });
-  router.get("/users", async (req, res) => {
-    try {
-      const users = await User.find().select("-password"); // Exclude passwords
-      res.json(users);
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
-  router.delete("/users/:id", async (req, res) => {
-    try {
-      await User.findByIdAndDelete(req.params.id);
-      res.json({ message: "User deleted successfully" });
-    } catch (error) {
-      console.error("Failed to delete user:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
-  
-  // Update a user by ID
-  router.put("/users/:id", async (req, res) => {
-    const { name, email,role,active, password, image, provider } = req.body;
-    try {
-      const updatedData = { name, email,role,active, image, provider };
-      if (password) {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        updatedData.password = hashedPassword;
-      }
-      const updatedUser = await User.findByIdAndUpdate(
-        req.params.id,
-        { $set: updatedData },
-        { new: true }
-      );
-      res.json(updatedUser);
-    } catch (error) {
-      console.error("Failed to update user:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
-  router.post("/adduser", async (req, res) => {
-    const { name, email,role,active, password, image, provider } = req.body;
-    try {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ error: "Email already exists" });
-      }
-  
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const newUser = new User({
-        name,
-        role,
-        email,
-        password: hashedPassword,
-        active,
-        image,
-        provider,
-      });
-  
-      await newUser.save();
-      res.status(201).json({ message: "User created successfully", user: newUser });
-    } catch (error) {
-      console.error("Failed to create user:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
-router.post("/signup", async (req, res) => {
-    try {
-      const { name, email, password,active } = req.body;
-  
-      // Validate input
-      if (!name || !email || !password) {
-        return res.status(400).json({ error: "All fields are required" });
-      }
-  
-      const existing = await User.findOne({ email });
-      if (existing) {
-        return res.status(400).json({ error: "Email already exists" });
-      }
-  
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user = new User({ name,active, email, password: hashedPassword });
-      await user.save();
-  
-      const token = jwt.sign({ userId: user._id }, JWT_SECRET);
-      res.json({ 
-        token, 
-        user: { 
-          id: user._id,
-          name: user.name, 
-          email: user.email,
-          role: user.role,
-        } 
-      });
-    } catch (error) {
-      console.error("Signup error:", error);
-      
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
+
+    const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
+    const user = new User({
+      email,
+      password: hashedPassword,
+      name,
+      role: role || 'user',
+      googleId,
+      image,
+      provider: provider || 'local',
+      active: active !== undefined ? active : true,
+    });
+
+    await user.save();
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
+    res.status(201).json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        active: user.active,
+      },
+    });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+});
 
 // Login
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+router.post('/login', validateLogin, async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-  const user = await User.findOne({ email });
-  if (!user) return res.status(400).json({ error: "Invalid email or password" });
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid email or password' });
+    }
 
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) return res.status(400).json({ error: "Invalid email or password" });
+    if (!user.active) {
+      return res.status(403).json({ message: 'Account is deactivated' });
+    }
 
-  const token = jwt.sign({ userId: user._id }, JWT_SECRET);
-  console.log("Login successful:", user._id, token);
-  res.json({ token, user: {id: user._id, name: user.name, email } });
+    if (user.provider === 'local' && password) {
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Invalid email or password' });
+      }
+    } else if (user.provider !== 'local') {
+      return res.status(400).json({ message: 'Use social login for this account' });
+    }
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        active: user.active,
+      },
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+});
+
+// Get all users (admin only)
+router.get(
+  '/users',
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const users = await User.find().select('-password -__v');
+      res.json(users);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+  }
+);
+
+// Update a user by ID (admin or self)
+router.put(
+  '/users/:id',
+  authMiddleware,
+  validateUserId,
+  validateUpdateUser,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, email, role, active, password, image, provider } = req.body;
+
+      // Check if user is admin or updating their own profile
+      const requestingUser = await User.findById(req.user.userId);
+      if (req.user.userId !== id && requestingUser.role !== 'admin') {
+        return res.status(403).json({ message: 'Unauthorized to update this user' });
+      }
+
+      const updatedData = { name, email, image, provider };
+      if (password) {
+        updatedData.password = await bcrypt.hash(password, 10);
+      }
+      if (requestingUser.role === 'admin') {
+        updatedData.role = role || 'user';
+        updatedData.active = active !== undefined ? active : true;
+      }
+
+      const updatedUser = await User.findByIdAndUpdate(
+        id,
+        { $set: updatedData },
+        { new: true }
+      ).select('-password -__v');
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Failed to update user:', error);
+      res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+  }
+);
+
+// Delete a user by ID (admin only)
+router.delete(
+  '/users/:id',
+  authMiddleware,
+  adminMiddleware,
+  validateUserId,
+  async (req, res) => {
+    try {
+      const user = await User.findByIdAndDelete(req.params.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      res.status(500).json({ message: 'Internal server error', error: error.message });
+    }
+  }
+);
+router.post('/check-user', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        active: user.active,
+      },
+      token: jwt.sign({ userId: user._id }, process.env.JWT_SECRET),
+    });
+  } catch (error) {
+    console.error('Check user error:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+});
+// routes/auth.js
+router.post('/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+  const user = await User.findOne({ refreshToken });
+  if (!user) return res.status(401).json({ message: 'Invalid refresh token' });
+  const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  res.json({ token });
 });
 
 module.exports = router;

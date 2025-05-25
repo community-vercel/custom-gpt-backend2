@@ -1,9 +1,9 @@
 const express = require("express");
-const authMiddleware = require("../middleware/auth");
+// const authMiddleware = require("../middleware/auth");
 const router = express.Router();
 const checkSubscription = require('../middleware/checkSubscription');
 
-router.get("/profile", authMiddleware, async (req, res) => {
+router.get("/profile",  async (req, res) => {
   try {
     res.json({
       user: {

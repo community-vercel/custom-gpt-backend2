@@ -1,13 +1,72 @@
+// routes/chatbot.js
 const express = require('express');
-const cors = require('cors');
 const router = express.Router();
 const Flow = require('../models/Flow');
 
-router.use(cors({
-  origin: ['http://localhost:3000', 'https://custom-gpt-builder-frontends-lvhs.vercel.app'],
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Accept']
-}));
+// router.get('/:flowId/:userId', async (req, res) => {
+//   console.log(`[Chatbot] Serving chatbot for flowId: ${req.params.flowId}, userId: ${req.params.userId}, domain: ${req.query.domain || 'not provided'}`);
+  
+//   try {
+//     const { flowId, userId } = req.params;
+//     const { domain } = req.query;
+//     const origin = req.get('Origin') || '';
+
+//     // Validate input parameters
+//     if (!flowId || !userId || !domain) {
+//       console.error(`[Chatbot] Missing parameters - flowId: ${flowId}, userId: ${userId}, domain: ${domain}`);
+//       return res.status(400).json({ message: 'Missing flowId, userId, or domain' });
+//     }
+
+//     // Find the flow
+//     const flow = await Flow.findOne({
+//       _id: flowId,
+//       userId,
+//     });
+
+//     // Check if flow exists
+//     if (!flow) {
+//       console.error(`[Chatbot] Flow not found for flowId: ${flowId}, userId: ${userId}`);
+//       return res.status(404).json({ message: 'Flow not found' });
+//     }
+
+//     // Normalize and validate website domain
+//     const normalizedDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+//     if (flow.websiteDomain !== normalizedDomain) {
+//       console.error(`[Chatbot] Domain mismatch - expected: ${flow.websiteDomain}, received: ${normalizedDomain}`);
+//       return res.status(403).json({ message: 'Invalid or unauthorized domain' });
+//     }
+
+//     // Validate request origin (optional, for additional security)
+//     const normalizedOrigin = origin.replace(/^https?:\/\//, '').replace(/\/$/, '');
+//     if (origin && normalizedOrigin !== flow.websiteDomain) {
+//       console.error(`[Chatbot] Origin mismatch - expected: ${flow.websiteDomain}, received: ${normalizedOrigin}`);
+//       return res.status(403).json({ message: 'Invalid request origin' });
+//     }
+
+//     // Serve chatbot data
+  
+//     res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' http://localhost:5000; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*; frame-ancestors *; connect-src 'self' http://localhost:5000");
+
+//     res.send(`
+//       <!DOCTYPE html>
+//       <html>
+//       <head>
+//         <title>Chatbot</title>
+//         <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+//         <script src="/api/chatbot/script.js"></script>
+//         <script src="/api/chatbot/config.js?flowId=${req.params.flowId}&userId=${req.params.userId}&primary=${encodeURIComponent(req.query.primary || '#6366f1')}&secondary=${encodeURIComponent(req.query.secondary || '#f59e0b')}&background=${encodeURIComponent(req.query.background || '#f8fafc')}&text=${encodeURIComponent(req.query.text || '#1f2937')}&name=${encodeURIComponent(req.query.name || 'Assistant')}&avatar=${encodeURIComponent(req.query.avatar || 'https://img.freepik.com/free-vector/chatbot-chat-message-vectorart_78370-4104.jpg?semt=ais_hybrid&w=200')}"></script>
+//         <script src="/chatbot-init.js"></script>
+//       </head>
+//       <body>
+//         <div id="chatbot-container" style="width: 100%; height: 100%;"></div>
+//       </body>
+//       </html>
+//     `);
+//   } catch (error) {
+//     console.error('[Chatbot] Error in chatbot route:', error);
+//     res.status(500).json({ message: 'Failed to load chatbot', error: error.message });
+//   }
+// });
 
 router.get('/:flowId/:userId', async (req, res) => {
   console.log(`[Chatbot] Serving chatbot for flowId: ${req.params.flowId}, userId: ${req.params.userId}, domain: ${req.query.domain || 'not provided'}`);
@@ -16,23 +75,27 @@ router.get('/:flowId/:userId', async (req, res) => {
     const { flowId, userId } = req.params;
     const { domain, preview } = req.query;
     const origin = req.get('Origin') || '';
-    const isPreview = preview === 'true';
+    const isPreview = preview === 'true'; // Check if preview mode is enabled
 
+    // Validate input parameters
     if (!flowId || !userId || (!isPreview && !domain)) {
       console.error(`[Chatbot] Missing parameters - flowId: ${flowId}, userId: ${userId}, domain: ${domain}`);
       return res.status(400).json({ message: 'Missing flowId, userId, or domain' });
     }
 
+    // Find the flow
     const flow = await Flow.findOne({
       _id: flowId,
       userId,
     });
 
+    // Check if flow exists
     if (!flow) {
       console.error(`[Chatbot] Flow not found for flowId: ${flowId}, userId: ${userId}`);
       return res.status(404).json({ message: 'Flow not found' });
     }
 
+    // Normalize and validate website domain (skip in preview mode)
     if (!isPreview) {
       const normalizedDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
       if (flow.websiteDomain !== normalizedDomain) {
@@ -40,6 +103,7 @@ router.get('/:flowId/:userId', async (req, res) => {
         return res.status(403).json({ message: 'Invalid or unauthorized domain' });
       }
 
+      // Validate request origin (optional, for additional security)
       const normalizedOrigin = origin.replace(/^https?:\/\//, '').replace(/\/$/, '');
       if (origin && normalizedOrigin !== flow.websiteDomain) {
         console.error(`[Chatbot] Origin mismatch - expected: ${flow.websiteDomain}, received: ${normalizedOrigin}`);
@@ -47,26 +111,18 @@ router.get('/:flowId/:userId', async (req, res) => {
       }
     }
 
-    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' http://localhost:5000 https://custom-gpt-backend-six.vercel.app; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*; frame-ancestors *; connect-src 'self' http://localhost:5000 https://custom-gpt-backend-six.vercel.app");
+    // Serve chatbot data
+    res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' http://localhost:5000; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*; frame-ancestors *; connect-src 'self' http://localhost:5000");
 
-    
     res.send(`
       <!DOCTYPE html>
       <html>
       <head>
         <title>Chatbot</title>
         <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <script src="https://custom-gpt-backend-six.vercel.app/api/chatbot/script.js"></script>
-        <script src="https://custom-gpt-backend-six.vercel.app/api/chatbot/config.js?flowId=${req.params.flowId}&userId=${req.params.userId}&primary=${encodeURIComponent(req.query.primary || '#6366f1')}&secondary=${encodeURIComponent(req.query.secondary || '#f59e0b')}&background=${encodeURIComponent(req.query.background || '#f8fafc')}&text=${encodeURIComponent(req.query.text || '#1f2937')}&name=${encodeURIComponent(req.query.name || 'Assistant')}&avatar=${encodeURIComponent(req.query.avatar || 'https://img.freepik.com/free-vector/chatbot-chat-message-vectorart_78370-4104.jpg?semt=ais_hybrid&w=200')}"></script>
-        <script>
-          document.addEventListener('DOMContentLoaded', () => {
-            if (window.initChatbot) {
-              window.initChatbot();
-            } else {
-              console.error('Chatbot initialization failed: initChatbot not defined');
-            }
-          });
-        </script>
+        <script src="/api/chatbot/script.js"></script>
+        <script src="/api/chatbot/config.js?flowId=${req.params.flowId}&userId=${req.params.userId}&primary=${encodeURIComponent(req.query.primary || '#6366f1')}&secondary=${encodeURIComponent(req.query.secondary || '#f59e0b')}&background=${encodeURIComponent(req.query.background || '#f8fafc')}&text=${encodeURIComponent(req.query.text || '#1f2937')}&name=${encodeURIComponent(req.query.name || 'Assistant')}&avatar=${encodeURIComponent(req.query.avatar || 'https://img.freepik.com/free-vector/chatbot-chat-message-vectorart_78370-4104.jpg?semt=ais_hybrid&w=200')}"></script>
+        <script src="/chatbot-init.js"></script>
       </head>
       <body>
         <div id="chatbot-container" style="width: 100%; height: 100%;"></div>
@@ -74,16 +130,11 @@ router.get('/:flowId/:userId', async (req, res) => {
       </html>
     `);
   } catch (error) {
-    console.error('[Chatbot] Error in chatbot route:', error);
     res.status(500).json({ message: 'Failed to load chatbot', error: error.message });
   }
 });
-
 router.get('/config.js', (req, res) => {
   console.log('[Chatbot] Serving config script');
-  res.set('Access-Control-Allow-Origin', req.get('Origin') || 'https://custom-gpt-builder-frontends-lvhs.vercel.app');
-  res.set('Access-Control-Allow-Methods', 'GET,OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type,Accept');
   const { flowId, userId, primary, secondary, background, text, name, avatar } = req.query;
   const script = `
     (function () {
@@ -104,13 +155,9 @@ router.get('/config.js', (req, res) => {
   res.set('Content-Type', 'application/javascript');
   res.send(script);
 });
-
 router.get('/script.js', async (req, res) => {
   try {
     console.log('[Chatbot] Serving chatbot script');
-    res.set('Access-Control-Allow-Origin', req.get('Origin') || 'https://custom-gpt-builder-frontends-lvhs.vercel.app');
-    res.set('Access-Control-Allow-Methods', 'GET,OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type,Accept');
     const script = `
       window.initChatbot = function () {
         console.log('[Chatbot] Initializing chatbot');
@@ -306,7 +353,7 @@ router.get('/script.js', async (req, res) => {
                       align-items: center;
                       justify-content: center;
                       transition: background 0.2s, transform 0.2s;
-                      z-index: 1001;
+                      z-index: 1001; /* Ensure send button is above other elements */
                     "
                     onmouseover="this.style.background='\${config.theme?.secondary || '#4f46e5'}'"
                     onmouseout="this.style.background='\${config.theme?.primary || '#6366f1'}'"
@@ -320,6 +367,7 @@ router.get('/script.js', async (req, res) => {
             </div>
           \`;
 
+          // Add floating toggle button
           const toggleIcon = document.createElement('button');
           toggleIcon.innerHTML = \`
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
@@ -356,7 +404,7 @@ router.get('/script.js', async (req, res) => {
           toggleIcon.addEventListener('click', () => {
             const isHidden = chatbotWrapper.style.display === 'none' || !chatbotWrapper.style.display;
             chatbotWrapper.style.display = isHidden ? 'flex' : 'none';
-            toggleIcon.style.display = isHidden ? 'none' : 'flex';
+            toggleIcon.style.display = isHidden ? 'none' : 'flex'; // Hide toggle when chatbot opens, show when closes
             if (isHidden) {
               chatbotWrapper.style.opacity = '0';
               chatbotWrapper.style.transform = 'translateY(20px)';
@@ -385,6 +433,7 @@ router.get('/script.js', async (req, res) => {
           chatbotWrapper.style.right = '20px';
           chatbotWrapper.style.zIndex = '999';
 
+          // Theme toggle logic
           let isDarkMode = false;
           const themeToggle = container.querySelector('#theme-toggle');
           themeToggle.addEventListener('click', () => {
@@ -397,10 +446,11 @@ router.get('/script.js', async (req, res) => {
             requestAnimationFrame(renderChat);
           });
 
+          // Close button logic for mobile
           const closeChat = container.querySelector('#close-chat');
           closeChat.addEventListener('click', () => {
             chatbotWrapper.style.display = 'none';
-            toggleIcon.style.display = 'flex';
+            toggleIcon.style.display = 'flex'; // Show toggle icon when closing chatbot
           });
           closeChat.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -448,7 +498,7 @@ router.get('/script.js', async (req, res) => {
           let chatHistory = [];
           let isTyping = false;
 
-          const fetchUrl = \`https://custom-gpt-backend-six.vercel.app/api/flow/\${config.userId}/\${config.flowId}\`;
+          const fetchUrl = \`http://localhost:5000/api/flow/\${config.userId}/\${config.flowId}\`;
           console.log('[Chatbot] Fetching flow from:', fetchUrl);
           fetch(fetchUrl, { method: 'GET', headers: { 'Accept': 'application/json' } })
             .then((response) => {
@@ -921,6 +971,7 @@ router.get('/script.js', async (req, res) => {
           \`;
           document.head.appendChild(styleSheet);
 
+          // Responsive adjustments
           const updateResponsiveStyles = () => {
             if (window.innerWidth <= 480) {
               closeChat.style.display = 'block';
@@ -941,5 +992,4 @@ router.get('/script.js', async (req, res) => {
     res.status(500).send('Error serving chatbot script');
   }
 });
-
 module.exports = router;
