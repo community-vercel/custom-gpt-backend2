@@ -96,20 +96,43 @@ router.get('/:flowId/:userId', async (req, res) => {
     }
 
     // Normalize and validate website domain (skip in preview mode)
-    if (!isPreview) {
-      const normalizedDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      if (flow.websiteDomain !== normalizedDomain) {
-        console.error(`[Chatbot] Domain mismatch - expected: ${flow.websiteDomain}, received: ${normalizedDomain}`);
-        return res.status(403).json({ message: 'Invalid or unauthorized domain' });
-      }
+if (!isPreview) {
+  const normalizedDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const normalizedStoredDomain = flow.websiteDomain.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-      // Validate request origin (optional, for additional security)
-      const normalizedOrigin = origin.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      if (origin && normalizedOrigin !== flow.websiteDomain) {
-        console.error(`[Chatbot] Origin mismatch - expected: ${flow.websiteDomain}, received: ${normalizedOrigin}`);
-        return res.status(403).json({ message: 'Invalid request origin' });
-      }
+  // Check if the provided domain matches the stored domain
+  if (normalizedDomain !== normalizedStoredDomain) {
+    console.error(`[Chatbot] Domain mismatch - expected: ${normalizedStoredDomain}, received: ${normalizedDomain}`);
+    return res.status(403).json({ message: 'Invalid or unauthorized domain' });
+  }
+
+  // Validate request Origin (optional, for additional security)
+  const origin = req.get('Origin') || '';
+  if (origin) {
+    const normalizedOrigin = origin.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    if (normalizedOrigin !== normalizedStoredDomain) {
+      console.error(`[Chatbot] Origin mismatch - expected: ${normalizedStoredDomain}, received: ${normalizedOrigin}`);
+      return res.status(403).json({ message: 'Invalid request origin' });
     }
+  }
+
+  // Validate browser base URL via Referer header (optional, for additional security)
+  const referer = req.get('Referer') || '';
+  if (referer) {
+    // Extract the hostname from the Referer URL
+    try {
+      const refererUrl = new URL(referer);
+      const normalizedReferer = refererUrl.hostname.replace(/\/$/, '');
+      if (normalizedReferer !== normalizedStoredDomain) {
+        console.error(`[Chatbot] Referer mismatch - expected: ${normalizedStoredDomain}, received: ${normalizedReferer}`);
+        return res.status(403).json({ message: 'Invalid request referer' });
+      }
+    } catch (error) {
+      console.error(`[Chatbot] Invalid Referer header: ${referer}, error: ${error.message}`);
+      return res.status(400).json({ message: 'Invalid Referer header' });
+    }
+  }
+}
 
     // Serve chatbot data
     res.set('Content-Security-Policy', "default-src 'self'; script-src 'self' http://localhost:5000; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*; frame-ancestors *; connect-src 'self' http://localhost:5000");

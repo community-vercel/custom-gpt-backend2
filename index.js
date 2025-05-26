@@ -13,8 +13,21 @@ const connectMongoDB = require('./config/db');
 const path = require("path");
 
 // Connect to MongoDB
-connectMongoDB();
 
+const startServer = async () => {
+  await connectMongoDB(); // Wait for MongoDB connection
+  const PORT = process.env.PORT || 5000;
+  const server = app.listen(PORT, () => {
+    console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  });
+
+  process.on('unhandledRejection', (err) => {
+    console.error('Unhandled Rejection:', err);
+    server.close(() => process.exit(1));
+  });
+};
+
+startServer();
 // Import routes
 const openAIRouter = require("./routes/openai");
 const metaRouter = require("./routes/meta");
@@ -81,8 +94,8 @@ app.use(cors({
 // );
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10000, // limit each IP to 100 requests per windowMs
+  windowMs: 5 * 60 * 1000, // 15 minutes
+  max: 100000, // limit each IP to 100 requests per windowMs
 });
 app.use("/api/", limiter);
 

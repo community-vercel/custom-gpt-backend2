@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Flow = require('../models/Flow');
+const User = require('../models/User');
+const Package = require('../models/packages');
+const Transaction = require('../models/transaction');
 
 // Save a new flow
 // routes/flow.js
@@ -8,24 +11,53 @@ const Flow = require('../models/Flow');
 // Create Flow
 
 
+// Create a new flow
 router.post('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const { nodes, edges, flowName, websiteDomain } = req.body;
- let name = flowName || `Flow ${new Date().toLocaleString()}`;
-      
-      // Check if name exists for this user
-      const existingFlow = await Flow.findOne({ userId: req.params.userId, name });
-      if (existingFlow) {
-        // Append timestamp to make it unique
-        name = `${name} (${Date.now()})`;
-      }
+    let name = flowName || `Flow ${new Date().toLocaleString()}`;
+
+    // Check if name exists for this user
+    const existingFlow = await Flow.findOne({ userId, name });
+    if (existingFlow) {
+      // Append timestamp to make it unique
+      name = `${name} (${Date.now()})`;
+    }
+
+    // Find the most recent completed transaction for the user
+    const transaction = await Transaction.findOne({
+      userId,
+      // status: 'completed',
+    })
+      .sort({ createdAt: -1 }) // Get the most recent completed transaction
+      .exec();
+
+    if (!transaction) {
+      return res.status(400).json({ message: 'No active subscription found. Please purchase a package.' });
+    }
+
+    // Get the package associated with the transaction
+    const pkg = await Package.findOne({ packageId: transaction.packageId });
+    if (!pkg) {
+      return res.status(400).json({ message: 'Associated package not found.' });
+    }
+
+    // Count the user's existing flows
+    const flowCount = await Flow.countDocuments({ userId });
+    if (flowCount >= pkg.flowsAllowed) {
+      return res.status(403).json({
+        message: `Flow limit reached. Your package allows ${pkg.flowsAllowed} flows.`,
+      });
+    }
+
+    // Create the new flow
     const flow = new Flow({
       userId,
       name,
       websiteDomain,
       nodes,
-      edges
+      edges,
     });
 
     const savedFlow = await flow.save();

@@ -29,6 +29,7 @@ router.get('/getpackages', async (req, res) => {
         description,
         billingPeriod = 'month',
         features = [],
+        flowsAllowed,
         isActive = true,
       } = req.body;
   
@@ -58,6 +59,7 @@ router.get('/getpackages', async (req, res) => {
         billingPeriod,
         features,
         isActive,
+        flowsAllowed,
         stripePriceId: stripePrice.id,
       });
   
@@ -123,6 +125,16 @@ router.post(
     '/stripe/webhook',
     express.raw({ type: 'application/json' }),
     async (req, res) => {
+        const { type, data } = req.body;
+  if (type === 'checkout.session.completed') {
+    const session = data.object;
+    const transaction = await Transaction.findOne({ stripeSessionId: session.id });
+    if (transaction) {
+      transaction.status = 'completed';
+      transaction.stripeSubscriptionId = session.subscription; // If applicable
+      await transaction.save();
+    }
+  }
       const sig = req.headers['stripe-signature'];
       const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   
