@@ -7,6 +7,7 @@ const flowSchema = new mongoose.Schema({
     required: true,
     ref: 'User'
   },
+  
   name: {
     type: String,
     required: true,

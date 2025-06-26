@@ -7,6 +7,7 @@ const { sendVerificationEmail } = require('../utils/sendEmail'); // Import email
 
 
 
+
 const router = express.Router();
 
 const nodemailer = require('nodemailer');
@@ -88,48 +89,28 @@ router.post('/reset-password', async (req, res) => {
     res.status(400).json({ message: 'Invalid or expired token' });
   }
 });
-// Resend Verification Email
-router.post('/resend-verification', async (req, res) => {
-  const { email } = req.body;
-  try {
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'Email not found' });
-    }
-    if (user.isVerified) {
-      return res.status(400).json({ message: 'Email already verified' });
-    }
+// Login Route
+// Login
+// routes/auth.js (update the /login route)
+router.post('/register', async (req, res) => {
+      console.log("Register request body:");
 
-    // Generate verification token
-    const verificationToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    user.verificationToken = verificationToken;
-    await user.save();
+    console.log("Register request body:", req.body);
 
-    // Send verification email
-    const verifyUrl = `http://localhost:3000/verify-email?token=${verificationToken}`;
-    await transporter.sendMail({
-      to: email,
-      subject: 'Verify Your Email',
-      html: `Click <a href="${verifyUrl}">here</a> to verify your email. This link expires in 24 hours.`,
-    });
-
-    res.json({ message: 'Verification email resent' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-
-
-// Signup (consolidated /register, /adduser, /signup)
-router.post('/register', validateSignup, async (req, res) => {
   try {
     const { email, password, name, role, googleId, image, provider } = req.body;
+
+    
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already exists' });
     }
+    
+
+
+
+
 
     const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
     const verificationToken = crypto.randomBytes(32).toString('hex'); // Generate token
@@ -147,7 +128,7 @@ const user = new User({
   verificationToken: provider === 'google' ? undefined : verificationToken,
   verificationTokenExpires: provider === 'google' ? undefined : tokenExpiration,
 });
-
+console.log('User object before saving:', user);
 if (provider !== 'google') {
   await sendVerificationEmail(email, name, verificationToken);
 }
@@ -204,7 +185,7 @@ router.get('/verify-email', async (req, res) => {
 
 // Login
 // routes/auth.js (update the /login route)
-router.post('/login', validateLogin, async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -229,6 +210,7 @@ router.post('/login', validateLogin, async (req, res) => {
     } else if (user.provider !== 'local') {
       return res.status(400).json({ message: 'Use social login for this account' });
     }
+console.log('User object before saving:', user);
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
     res.json({
@@ -247,37 +229,117 @@ router.post('/login', validateLogin, async (req, res) => {
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 });
-// routes/auth.js
 router.post('/resend-verification', async (req, res) => {
+  const { email } = req.body;
   try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
-    }
-
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'Email not found' });
     }
-
     if (user.isVerified) {
-      return res.status(400).json({ message: 'Email is already verified' });
+      return res.status(400).json({ message: 'Email already verified' });
     }
 
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const tokenExpiration = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-
+    // Generate verification token
+    const verificationToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
     user.verificationToken = verificationToken;
-    user.verificationTokenExpires = tokenExpiration;
     await user.save();
 
-    await sendVerificationEmail(user.email, user.name, verificationToken);
-    res.json({ message: 'Verification email resent successfully' });
+    // Send verification email
+    const verifyUrl = `http://localhost:3000/verify-email?token=${verificationToken}`;
+    await transporter.sendMail({
+      to: email,
+      subject: 'Verify Your Email',
+      html: `Click <a href="${verifyUrl}">here</a> to verify your email. This link expires in 24 hours.`,
+    });
+
+    res.json({ message: 'Verification email resent' });
   } catch (error) {
-    console.error('Resend verification error:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    res.status(500).json({ message: 'Server error' });
   }
 });
+
+
+
+// Signup (consolidated /register, /adduser, /signup)
+
+
+// Login
+// routes/auth.js (update the /login route)
+// router.post('/login', validateLogin, async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//       return res.status(400).json({ message: 'Invalid email or password' });
+//     }
+
+//     if (!user.isVerified) {
+//       return res.status(403).json({ message: 'Please verify your email before logging in' });
+//     }
+
+//     if (!user.active) {
+//       return res.status(403).json({ message: 'Account is deactivated' });
+//     }
+
+//     if (user.provider === 'local' && password) {
+//       const isMatch = await bcrypt.compare(password, user.password);
+//       if (!isMatch) {
+//         return res.status(400).json({ message: 'Invalid email or password' });
+//       }
+//     } else if (user.provider !== 'local') {
+//       return res.status(400).json({ message: 'Use social login for this account' });
+//     }
+
+//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
+//     res.json({
+//       token,
+//       user: {
+//         id: user._id,
+//         name: user.name,
+//         email: user.email,
+//         role: user.role,
+//         active: user.active,
+//         isVerified: user.isVerified,
+//       },
+//     });
+//   } catch (error) {
+//     console.error('Login error:', error);
+//     res.status(500).json({ message: 'Internal server error', error: error.message });
+//   }
+// });
+// // routes/auth.js
+// router.post('/resend-verification', async (req, res) => {
+//   try {
+//     const { email } = req.body;
+//     if (!email) {
+//       return res.status(400).json({ message: 'Email is required' });
+//     }
+
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//       return res.status(404).json({ message: 'User not found' });
+//     }
+
+//     if (user.isVerified) {
+//       return res.status(400).json({ message: 'Email is already verified' });
+//     }
+
+//     const verificationToken = crypto.randomBytes(32).toString('hex');
+//     const tokenExpiration = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
+//     user.verificationToken = verificationToken;
+//     user.verificationTokenExpires = tokenExpiration;
+//     await user.save();
+
+//     await sendVerificationEmail(user.email, user.name, verificationToken);
+//     res.json({ message: 'Verification email resent successfully' });
+//   } catch (error) {
+//     console.error('Resend verification error:', error);
+//     res.status(500).json({ message: 'Internal server error', error: error.message });
+//   }
+// });
 // Get all users (admin only)
 router.get(
   '/users',
