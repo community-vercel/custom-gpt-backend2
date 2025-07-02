@@ -349,8 +349,8 @@ router.post('/stripe/verify-checkout-session', async (req, res) => {
         },
       ],
       mode: pkg.billingPeriod === 'month' || pkg.billingPeriod === 'year' ? 'subscription' : 'payment',
-      success_url: `https://custom-gpt-builder-frontend.vercel.app/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `https://custom-gpt-builder-frontend.vercel.app//cancel`,
+      success_url: `https://techrecto.com/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `https://techrecto.com//cancel`,
       metadata: {
         packageId,
         userId,
